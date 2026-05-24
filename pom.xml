@@ -41,7 +41,20 @@
                 <artifactId>NoteListBackendPersistence</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <dependency>
+                <groupId>ru.reshetoff</groupId>
+                <artifactId>NoteListBackendWEB</artifactId>
+                <version>${project.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+    </dependencies>
 
 </project>

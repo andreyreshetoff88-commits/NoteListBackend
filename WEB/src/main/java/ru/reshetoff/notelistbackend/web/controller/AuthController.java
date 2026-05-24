@@ -1,0 +1,303 @@
+package ru.reshetoff.notelistbackend.web.controller;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
+import ru.reshetoff.notelistbackend.domain.entity.User;
+import ru.reshetoff.notelistbackend.domain.exception.AccountNotVerifiedException;
+import ru.reshetoff.notelistbackend.domain.service.UserService;
+import ru.reshetoff.notelistbackend.web.dto.requests.LoginRequest;
+import ru.reshetoff.notelistbackend.web.dto.requests.RefreshTokenRequest;
+import ru.reshetoff.notelistbackend.web.dto.requests.RegisterUserRequest;
+import ru.reshetoff.notelistbackend.web.dto.response.AuthResponse;
+import ru.reshetoff.notelistbackend.web.dto.response.ErrorResponse;
+import ru.reshetoff.notelistbackend.web.mapper.AuthMapper;
+import ru.reshetoff.notelistbackend.web.security.CustomUserDetails;
+import ru.reshetoff.notelistbackend.web.security.JwtService;
+
+import java.time.LocalDateTime;
+
+@Tag(name = "Auth", description = "Аутентификация и регистрация")
+@RestController
+@RequestMapping("/auth")
+@RequiredArgsConstructor
+public class AuthController {
+    private final UserService userService;
+    private final JwtService jwtService;
+    private final AuthenticationManager authenticationManager;
+
+    @PostMapping("/register")
+    @Operation(summary = "Регистрация нового пользователя")
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            description = "Данные для регистрации",
+            required = true,
+            content = @Content(
+                    mediaType = "application/json",
+                    examples = @ExampleObject(value = """
+                            {
+                                "displayName": "Иван Иванов",
+                                "phoneNumber": "+79999999999",
+                                "email": "ivan@example.com",
+                                "password": "password123"
+                            }
+                            """)
+            )
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "201",
+                    description = "Пользователь успешно зарегистрирован",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = AuthResponse.class),
+                            examples = @ExampleObject(value = """
+                                    {
+                                        "accessToken": "eyJhbGciOiJIUzI1NiJ9...",
+                                        "refreshToken": "eyJhbGciOiJIUzI1NiJ9..."
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Неверные данные (email или password отсутствуют или невалидны)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class),
+                            examples = @ExampleObject(
+                                    name = "ValidationError",
+                                    value = """
+                                            {
+                                                "code": "VALIDATION_FAILED",
+                                                "level": "error",
+                                                "message": "Some fields are filled incorrectly",
+                                                "details": [
+                                                    {
+                                                        "field": "email",
+                                                        "message": "Email is required"
+                                                    },
+                                                    {
+                                                        "field": "password",
+                                                        "message": "Password must be at least 8 characters"
+                                                    }
+                                                ]
+                                            }
+                                            """
+                            )
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "409",
+                    description = "Пользователь с таким email уже существует",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class),
+                            examples = @ExampleObject(
+                                    name = "ConflictError",
+                                    value = """
+                                            {
+                                                "code": "EMAIL_ALREADY_EXISTS",
+                                                "level": "error",
+                                                "message": "Email already exists: ivan@example.com",
+                                                "details": null
+                                            }
+                                            """
+                            )
+                    )
+            )
+    })
+    public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterUserRequest request) {
+        User user = userService.registerUser(AuthMapper.toEntity(request));
+        CustomUserDetails customUserDetails = new CustomUserDetails(user);
+        String accessToken = jwtService.generateAccessToken(customUserDetails);
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+                new AuthResponse(accessToken, user.getRefreshToken())
+        );
+    }
+
+    @PostMapping("/login")
+    @Operation(summary = "Вход в систему")
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            description = "Учётные данные пользователя",
+            required = true,
+            content = @Content(
+                    mediaType = "application/json",
+                    examples = @ExampleObject(value = """
+                            {
+                                "email": "ivan@example.com",
+                                "password": "password123"
+                            }
+                            """)
+            )
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Успешная аутентификация, возвращён JWT-токен",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = AuthResponse.class),
+                            examples = @ExampleObject(value = """
+                                    {
+                                        "accessToken": "eyJhbGciOiJIUzI1NiJ9...",
+                                        "refreshToken": "eyJhbGciOiJIUzI1NiJ9..."
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Неверный email или пароль",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class),
+                            examples = @ExampleObject(
+                                    name = "UnauthorizedError",
+                                    value = """
+                                            {
+                                                "code": "UNAUTHORIZED",
+                                                "level": "error",
+                                                "message": "Invalid email or password",
+                                                "details": null
+                                            }
+                                            """
+                            )
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Пользователь с таким email не найден",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class),
+                            examples = @ExampleObject(
+                                    name = "NotFoundError",
+                                    value = """
+                                            {
+                                                "code": "USER_NOT_FOUND",
+                                                "level": "error",
+                                                "message": "User with email ivan@example.com not found",
+                                                "details": null
+                                            }
+                                            """
+                            )
+                    )
+            )
+    })
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
+        User user = userService.findByEmail(request.getEmail());
+
+        if (!user.isVerified()) {
+            throw new AccountNotVerifiedException(request.getEmail());
+        }
+
+        authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
+        );
+
+        userService.updateRefreshToken(user);
+        user = userService.findByEmail(request.getEmail());
+        CustomUserDetails userDetails = new CustomUserDetails(user);
+        String token = jwtService.generateAccessToken(userDetails);
+
+        return ResponseEntity.ok(new AuthResponse(token, user.getRefreshToken()));
+    }
+
+    @PostMapping("/refresh")
+    @Operation(summary = "Обновление токена доступа")
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            description = "Refresh токен для обновления",
+            required = true,
+            content = @Content(
+                    mediaType = "application/json",
+                    examples = @ExampleObject(value = """
+                            {
+                                "email": "ivan@example.com",
+                                "password": "password123"
+                            }
+                            """)
+            )
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Токены успешно обновлены",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = AuthResponse.class),
+                            examples = @ExampleObject(value = """
+                                    {
+                                        "accessToken": "eyJhbGciOiJIUzI1NiJ9...",
+                                        "refreshToken": "eyJhbGciOiJIUzI1NiJ9..."
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Refresh токен истёк или невалиден",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class),
+                            examples = @ExampleObject(
+                                    name = "UnauthorizedError",
+                                    value = """
+                                            {
+                                                "code": "UNAUTHORIZED",
+                                                "level": "error",
+                                                "message": "Invalid email or password",
+                                                "details": null
+                                            }
+                                            """
+                            )
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Refresh токен не найден",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class),
+                            examples = @ExampleObject(
+                                    name = "NotFoundError",
+                                    value = """
+                                            {
+                                                "code": "USER_NOT_FOUND",
+                                                "level": "error",
+                                                "message": "User with email ivan@example.com not found",
+                                                "details": null
+                                            }
+                                            """
+                            )
+                    )
+            )
+    })
+    public ResponseEntity<AuthResponse> refresh(@Valid @RequestBody RefreshTokenRequest request) {
+        User user = userService.findByRefreshToken(request.getRefreshToken());
+
+        if (user.getRefreshTokenExpiry().isBefore(LocalDateTime.now())) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh token expired");
+        }
+
+        userService.updateRefreshToken(user);
+        CustomUserDetails customUserDetails = new CustomUserDetails(user);
+        String accessToken = jwtService.generateAccessToken(customUserDetails);
+
+        return ResponseEntity.ok(new AuthResponse(accessToken, user.getRefreshToken()));
+    }
+}
