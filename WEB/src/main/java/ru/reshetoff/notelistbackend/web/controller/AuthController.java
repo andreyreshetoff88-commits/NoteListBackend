@@ -42,7 +42,10 @@ public class AuthController {
     private final AuthenticationManager authenticationManager;
 
     @PostMapping("/register")
-    @Operation(summary = "Регистрация нового пользователя")
+    @Operation(
+            summary = "Регистрация нового пользователя",
+            description = "Пароль должен содержать минимум 8 символов, заглавную и строчную букву, цифру и спецсимвол (@#$%^&+=!)"
+    )
     @io.swagger.v3.oas.annotations.parameters.RequestBody(
             description = "Данные для регистрации",
             required = true,
@@ -131,7 +134,10 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    @Operation(summary = "Вход в систему")
+    @Operation(
+            summary = "Вход в систему",
+            description = "Пароль должен содержать минимум 8 символов, заглавную и строчную букву, цифру и спецсимвол (@#$%^&+=!)"
+    )
     @io.swagger.v3.oas.annotations.parameters.RequestBody(
             description = "Учётные данные пользователя",
             required = true,
@@ -227,8 +233,7 @@ public class AuthController {
                     mediaType = "application/json",
                     examples = @ExampleObject(value = """
                             {
-                                "email": "ivan@example.com",
-                                "password": "password123"
+                                "refreshToken": "eyJhbGciOiJIUzI1NiJ9..."
                             }
                             """)
             )
@@ -260,7 +265,26 @@ public class AuthController {
                                             {
                                                 "code": "UNAUTHORIZED",
                                                 "level": "error",
-                                                "message": "Invalid email or password",
+                                                "message": "Refresh token expired",
+                                                "details": null
+                                            }
+                                            """
+                            )
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Аккаунт не верифицирован",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class),
+                            examples = @ExampleObject(
+                                    name = "ForbiddenError",
+                                    value = """
+                                            {
+                                                "code": "ACCOUNT_NOT_VERIFIED",
+                                                "level": "error",
+                                                "message": "Account not verified: ivan@example.com",
                                                 "details": null
                                             }
                                             """
@@ -279,7 +303,7 @@ public class AuthController {
                                             {
                                                 "code": "USER_NOT_FOUND",
                                                 "level": "error",
-                                                "message": "User with email ivan@example.com not found",
+                                                "message": "User with identifier ... not found",
                                                 "details": null
                                             }
                                             """
@@ -290,11 +314,16 @@ public class AuthController {
     public ResponseEntity<AuthResponse> refresh(@Valid @RequestBody RefreshTokenRequest request) {
         User user = userService.findByRefreshToken(request.getRefreshToken());
 
+        if (!user.isVerified()) {
+            throw new AccountNotVerifiedException(user.getEmail());
+        }
+
         if (user.getRefreshTokenExpiry().isBefore(LocalDateTime.now())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh token expired");
         }
 
         userService.updateRefreshToken(user);
+        user = userService.findByEmail(user.getEmail());
         CustomUserDetails customUserDetails = new CustomUserDetails(user);
         String accessToken = jwtService.generateAccessToken(customUserDetails);
 
