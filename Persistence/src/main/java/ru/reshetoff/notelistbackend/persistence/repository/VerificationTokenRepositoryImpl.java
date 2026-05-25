@@ -4,6 +4,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
+import ru.reshetoff.notelistbackend.domain.entity.User;
 import ru.reshetoff.notelistbackend.domain.entity.VerificationToken;
 import ru.reshetoff.notelistbackend.domain.repository.VerificationTokenRepository;
 
@@ -16,12 +17,11 @@ public class VerificationTokenRepositoryImpl implements VerificationTokenReposit
     private final EntityManager em;
 
     @Override
-    public VerificationToken save(VerificationToken token) {
+    public void save(VerificationToken token) {
         if (token.getId() == null) {
             em.persist(token);
-            return token;
         } else {
-            return em.merge(token);
+            em.merge(token);
         }
     }
 
@@ -37,5 +37,11 @@ public class VerificationTokenRepositoryImpl implements VerificationTokenReposit
     @Override
     public void delete(VerificationToken token) {
         em.remove(em.contains(token) ? token : em.merge(token));
+    }
+
+    @Override
+    public void deleteByUser(User user) {
+        String jpql = "DELETE FROM VerificationToken v WHERE v.user = :user";
+        em.createQuery(jpql).setParameter("user", user).executeUpdate();
     }
 }

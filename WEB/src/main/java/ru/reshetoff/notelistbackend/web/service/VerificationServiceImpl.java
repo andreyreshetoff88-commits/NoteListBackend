@@ -35,6 +35,8 @@ public class VerificationServiceImpl implements VerificationService {
                 () -> new UserNotFoundException(email, true)
         );
 
+        verificationTokenRepository.deleteByUser(user);
+
         String tokenValue = UUID.randomUUID().toString();
         VerificationToken verificationToken = new VerificationToken();
         verificationToken.setToken(tokenValue);

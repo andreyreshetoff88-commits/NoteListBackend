@@ -21,7 +21,7 @@ public class RegisterUserRequest {
     @NotBlank(message = "Password is required")
     @Schema(description = "Password must be at least 8 characters, contain uppercase, lowercase, digit and special character")
     @Pattern(
-            regexp = "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=!])(?=\\S+$).{8,}$",
+            regexp = "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=!_])(?=\\S+$).{8,}$",
             message = "Password must be at least 8 characters, contain uppercase, lowercase, digit and special character"
     )
     private String password;
