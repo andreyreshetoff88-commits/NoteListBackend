@@ -13,14 +13,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import ru.reshetoff.notelistbackend.domain.entity.User;
 import ru.reshetoff.notelistbackend.domain.exception.AccountNotVerifiedException;
 import ru.reshetoff.notelistbackend.domain.service.UserService;
+import ru.reshetoff.notelistbackend.domain.service.VerificationService;
 import ru.reshetoff.notelistbackend.web.dto.requests.LoginRequest;
 import ru.reshetoff.notelistbackend.web.dto.requests.RefreshTokenRequest;
 import ru.reshetoff.notelistbackend.web.dto.requests.RegisterUserRequest;
@@ -31,6 +29,7 @@ import ru.reshetoff.notelistbackend.web.security.CustomUserDetails;
 import ru.reshetoff.notelistbackend.web.security.JwtService;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Tag(name = "Auth", description = "Аутентификация и регистрация")
 @RestController
@@ -38,6 +37,7 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class AuthController {
     private final UserService userService;
+    private final VerificationService verificationService;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
 
@@ -328,5 +328,89 @@ public class AuthController {
         String accessToken = jwtService.generateAccessToken(customUserDetails);
 
         return ResponseEntity.ok(new AuthResponse(accessToken, user.getRefreshToken()));
+    }
+
+    @PostMapping("/send-verification")
+    @Operation(
+            summary = "Отправить письмо для верификации email",
+            description = "На указанный email будет отправлено письмо со ссылкой для подтверждения. Ссылка действительна 24 часа."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Письмо отправлено",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                        "message": "На ваш email отправлено письмо со ссылкой для подтверждения. Ссылка действительна 24 часа."
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Пользователь с таким email не найден",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class),
+                            examples = @ExampleObject(value = """
+                                    {
+                                        "code": "USER_NOT_FOUND",
+                                        "level": "error",
+                                        "message": "User with email ivan@example.com not found",
+                                        "details": null
+                                    }
+                                    """)
+                    )
+            )
+    })
+    public ResponseEntity<Map<String, String>> sendVerification(@RequestParam String email) {
+        verificationService.sendVerificationEmail(email);
+        return ResponseEntity.ok(Map.of(
+                "message", "На ваш email отправлено письмо со ссылкой для подтверждения. Ссылка действительна 24 часа."
+        ));
+    }
+
+    @GetMapping("/verify")
+    @Operation(
+            summary = "Подтвердить email по токену",
+            description = "Подтверждает email пользователя. После успешной верификации пользователь может войти в систему."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Email успешно подтверждён",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                        "message": "Email успешно подтверждён. Теперь вы можете войти в систему."
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Невалидный или просроченный токен",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class),
+                            examples = @ExampleObject(value = """
+                                    {
+                                        "code": "INVALID_VERIFICATION_TOKEN",
+                                        "level": "error",
+                                        "message": "Invalid or expired verification token: some-uuid",
+                                        "details": null
+                                    }
+                                    """)
+                    )
+            )
+    })
+    public ResponseEntity<Map<String, String>> verifyEmail(@RequestParam String token) {
+        verificationService.verifyEmail(token);
+        return ResponseEntity.ok(Map.of(
+                "message", "Email успешно подтверждён. Теперь вы можете войти в систему."
+        ));
     }
 }

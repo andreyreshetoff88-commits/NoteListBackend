@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import ru.reshetoff.notelistbackend.domain.exception.AccountNotVerifiedException;
 import ru.reshetoff.notelistbackend.domain.exception.EmailAlreadyExistsException;
+import ru.reshetoff.notelistbackend.domain.exception.InvalidVerificationTokenException;
 import ru.reshetoff.notelistbackend.domain.exception.UserNotFoundException;
 import ru.reshetoff.notelistbackend.web.dto.response.ErrorDetail;
 import ru.reshetoff.notelistbackend.web.dto.response.ErrorResponse;
@@ -33,6 +34,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleAccountNotVerifiedException(AccountNotVerifiedException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
                 new ErrorResponse("FORBIDDEN", "error", ex.getMessage())
+        );
+    }
+
+    @ExceptionHandler(InvalidVerificationTokenException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidVerificationTokenException(InvalidVerificationTokenException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                new ErrorResponse("INVALID_VERIFICATION_TOKEN", "error", ex.getMessage())
         );
     }
 
