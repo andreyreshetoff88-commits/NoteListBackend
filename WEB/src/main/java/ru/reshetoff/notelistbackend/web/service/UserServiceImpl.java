@@ -16,6 +16,7 @@ import java.time.ZoneId;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @Transactional(readOnly = true)
@@ -54,6 +55,13 @@ public class UserServiceImpl implements UserService {
     public User findByEmail(String email) {
         return userRepository.findByEmail(email).orElseThrow(
                 () -> new UserNotFoundException(email, true)
+        );
+    }
+
+    @Override
+    public User findById(UUID id) {
+        return userRepository.findById(id).orElseThrow(
+                () -> new UserNotFoundException("User not found")
         );
     }
 

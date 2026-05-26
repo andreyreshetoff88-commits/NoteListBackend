@@ -24,12 +24,15 @@ import ru.reshetoff.notelistbackend.web.dto.requests.RefreshTokenRequest;
 import ru.reshetoff.notelistbackend.web.dto.requests.RegisterUserRequest;
 import ru.reshetoff.notelistbackend.web.dto.response.AuthResponse;
 import ru.reshetoff.notelistbackend.web.dto.response.ErrorResponse;
+import ru.reshetoff.notelistbackend.web.dto.response.UserResponse;
 import ru.reshetoff.notelistbackend.web.mapper.AuthMapper;
 import ru.reshetoff.notelistbackend.web.security.CustomUserDetails;
 import ru.reshetoff.notelistbackend.web.security.JwtService;
+import ru.reshetoff.notelistbackend.web.security.SecurityUtils;
 
 import java.time.LocalDateTime;
 import java.util.Map;
+import java.util.UUID;
 
 @Tag(name = "Auth", description = "Аутентификация и регистрация")
 @RestController
@@ -412,5 +415,67 @@ public class AuthController {
         return ResponseEntity.ok(Map.of(
                 "message", "Email успешно подтверждён. Теперь вы можете войти в систему."
         ));
+    }
+
+    @GetMapping("/me")
+    @Operation(
+            summary = "Получить данные текущего пользователя",
+            description = "Возвращает профиль авторизованного пользователя: ID, имя, email, телефон, статус верификации и дату создания."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Данные пользователя успешно получены",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                        "id": "e7272769-a748-4279-a1cb-85a3f72bd289",
+                                        "displayName": "Иван Иванов",
+                                        "email": "ivan@example.com",
+                                        "phoneNumber": "+79991234567",
+                                        "isVerified": true,
+                                        "createdAt": "2026-05-25T22:00:00"
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Пользователь не авторизован (токен истек, невалиден или отсутствует)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class),
+                            examples = @ExampleObject(value = """
+                                    {
+                                        "code": "UNAUTHORIZED",
+                                        "level": "error",
+                                        "message": "Full authentication is required to access this resource",
+                                        "details": null
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Пользователь не найден в базе данных",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class),
+                            examples = @ExampleObject(value = """
+                                    {
+                                        "code": "USER_NOT_FOUND",
+                                        "level": "error",
+                                        "message": "User not found",
+                                        "details": null
+                                    }
+                                    """)
+                    )
+            )
+    })
+    public ResponseEntity<UserResponse> getCurrentUser() {
+        UUID userId = SecurityUtils.getCurrentUserId();
+        User user = userService.findById(userId);
+        return ResponseEntity.ok(AuthMapper.toResponse(user));
     }
 }
