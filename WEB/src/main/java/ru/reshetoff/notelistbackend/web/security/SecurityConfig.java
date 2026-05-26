@@ -41,6 +41,7 @@ public class SecurityConfig {
                                 "/auth/refresh",
                                 "/auth/send-verification",
                                 "/auth/verify",
+                                "/utils/countries/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
                                 "/v3/api-docs/**",
