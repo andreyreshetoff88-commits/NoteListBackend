@@ -19,7 +19,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(EmailAlreadyExistsException.class)
     public ResponseEntity<ErrorResponse> handleEmailAlreadyExistsException(EmailAlreadyExistsException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(
-                new ErrorResponse("CONFLICT", "error", ex.getMessage())
+                new ErrorResponse("EMAIL_ALREADY_EXIST", "error", ex.getMessage())
         );
     }
 
