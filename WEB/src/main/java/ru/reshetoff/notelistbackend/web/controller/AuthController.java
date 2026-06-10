@@ -189,6 +189,25 @@ public class AuthController {
                     )
             ),
             @ApiResponse(
+                    responseCode = "403",
+                    description = "Аккаунт не верифицирован",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class),
+                            examples = @ExampleObject(
+                                    name = "ForbiddenError",
+                                    value = """
+                                            {
+                                                "code": "ACCOUNT_NOT_VERIFIED",
+                                                "level": "error",
+                                                "message": "Account not verified: ivan@example.com",
+                                                "details": null
+                                            }
+                                            """
+                            )
+                    )
+            ),
+            @ApiResponse(
                     responseCode = "404",
                     description = "Пользователь с таким email не найден",
                     content = @Content(
