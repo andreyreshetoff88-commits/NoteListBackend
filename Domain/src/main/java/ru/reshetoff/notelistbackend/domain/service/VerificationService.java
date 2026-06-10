@@ -1,6 +1,6 @@
 package ru.reshetoff.notelistbackend.domain.service;
 
 public interface VerificationService {
-    void sendVerificationEmail(String email);
-    void verifyEmail(String token);
+    void sendVerificationCode(String email, String testToken);
+    void verifyCode(String email, String code);
 }

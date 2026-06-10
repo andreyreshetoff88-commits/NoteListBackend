@@ -9,14 +9,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.reshetoff.notelistbackend.domain.entity.User;
 import ru.reshetoff.notelistbackend.domain.entity.VerificationToken;
-import ru.reshetoff.notelistbackend.domain.exception.InvalidVerificationTokenException;
+import ru.reshetoff.notelistbackend.domain.exception.InvalidVerificationCodeException;
 import ru.reshetoff.notelistbackend.domain.exception.UserNotFoundException;
 import ru.reshetoff.notelistbackend.domain.repository.UserRepository;
 import ru.reshetoff.notelistbackend.domain.repository.VerificationTokenRepository;
 import ru.reshetoff.notelistbackend.domain.service.VerificationService;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Service
 @Transactional
@@ -28,41 +28,68 @@ public class VerificationServiceImpl implements VerificationService {
 
     @Value("${spring.mail.from}")
     private String fromAddress;
+    @Value("${verification.test-token}")
+    private String testToken;
+    @Value("${verification.test-code}")
+    private String testCode;
 
     @Override
-    public void sendVerificationEmail(String email) {
+    public void sendVerificationCode(String email, String testToken) {
         User user = userRepository.findByEmail(email).orElseThrow(
                 () -> new UserNotFoundException(email, true)
         );
 
         verificationTokenRepository.deleteByUser(user);
 
-        String tokenValue = UUID.randomUUID().toString();
+        String code = (testToken != null && testToken.equals(this.testToken)) ? testCode :
+                String.valueOf(100000 + ThreadLocalRandom.current().nextInt(900000));
+
         VerificationToken verificationToken = new VerificationToken();
-        verificationToken.setToken(tokenValue);
+        verificationToken.setCode(code);
         verificationToken.setUser(user);
         verificationToken.setExpiryDate(LocalDateTime.now().plusHours(24));
         verificationTokenRepository.save(verificationToken);
 
-        String verificationLink = "http://localhost:8080/auth/verify?token=" + tokenValue;
-        String subject = "Подтверждение email";
-        String body = "<h2>Добро пожаловать в Note List!</h2>"
-                + "<p>Для подтверждения email перейдите по ссылке:</p>"
-                + "<a href=\"" + verificationLink + "\">" + verificationLink + "</a>"
-                + "<p>Ссылка действительна 24 часа.</p>";
+        if (testToken == null || !testToken.equals(this.testToken)) {
+            String subject = "Код подтверждения";
+            String body = """
+                    <div style="text-align: center; font-family: Arial, sans-serif;">
+                        <h2>Добро пожаловать в Note List!</h2>
+                        <p>Ваш код для подтверждения email:</p>
+                        <div style="font-size: 32px; font-weight: bold; letter-spacing: 10px; 
+                                    background: #f5f5f5; padding: 20px; margin: 20px auto; 
+                                    width: 200px; border-radius: 8px;">
+                            %s
+                        </div>
+                        <p>Код действителен 24 часа.</p>
+                        <p>Если вы не запрашивали код, просто проигнорируйте это письмо.</p>
+                    </div>
+                    """.formatted(code);
 
-        sendHtmlEmail(user.getEmail(), subject, body);
+            sendHtmlEmail(user.getEmail(), subject, body);
+        }
     }
 
     @Override
-    public void verifyEmail(String token) {
-        VerificationToken verificationToken = verificationTokenRepository.findByToken(token).orElseThrow(
-                () -> new InvalidVerificationTokenException(token)
+    public void verifyCode(String email, String code) {
+        VerificationToken verificationToken = verificationTokenRepository.findByUserEmail(email).orElseThrow(
+                () -> new InvalidVerificationCodeException("Verification code for email: " + email + " not found")
         );
 
         if (verificationToken.getExpiryDate().isBefore(LocalDateTime.now())) {
             verificationTokenRepository.delete(verificationToken);
-            throw new InvalidVerificationTokenException(token);
+            throw new InvalidVerificationCodeException("Verification code expired for email: " + email);
+        }
+
+        if (!verificationToken.getCode().equals(code)) {
+            verificationToken.setAttempts(verificationToken.getAttempts() + 1);
+            verificationTokenRepository.save(verificationToken);
+            throw new InvalidVerificationCodeException("Invalid verification code for email: " + email);
+        }
+
+        if (verificationToken.getAttempts() >= 5) {
+            verificationTokenRepository.delete(verificationToken);
+            throw new InvalidVerificationCodeException("Too many attempts for email: " + email);
         }
 
         User user = verificationToken.getUser();

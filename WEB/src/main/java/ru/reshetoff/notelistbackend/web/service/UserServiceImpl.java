@@ -12,11 +12,13 @@ import ru.reshetoff.notelistbackend.domain.service.UserService;
 import ru.reshetoff.notelistbackend.web.security.CustomUserDetails;
 import ru.reshetoff.notelistbackend.web.security.JwtService;
 
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
 @Transactional(readOnly = true)
@@ -97,5 +99,21 @@ public class UserServiceImpl implements UserService {
         user.setRefreshTokenExpiry(expiration.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime());
 
         userRepository.save(user);
+    }
+
+    @Override
+    @Transactional
+    public void deleteUser(User user) {
+        userRepository.delete(user);
+    }
+
+    @Override
+    public int deleteUnverifiedOlderThan(int hours) {
+        AtomicInteger count = new AtomicInteger();
+        userRepository.findUnverifiedOlderThan(LocalDateTime.now().minusHours(hours)).forEach(user -> {
+            userRepository.delete(user);
+            count.getAndIncrement();
+        });
+        return count.get();
     }
 }

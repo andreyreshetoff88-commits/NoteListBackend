@@ -1,6 +1,5 @@
 package ru.reshetoff.notelistbackend.web.controller;
 
-import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
@@ -26,6 +25,7 @@ import ru.reshetoff.notelistbackend.domain.service.VerificationService;
 import ru.reshetoff.notelistbackend.web.dto.requests.LoginRequest;
 import ru.reshetoff.notelistbackend.web.dto.requests.RefreshTokenRequest;
 import ru.reshetoff.notelistbackend.web.dto.requests.RegisterUserRequest;
+import ru.reshetoff.notelistbackend.web.dto.requests.VerifyCodeRequest;
 import ru.reshetoff.notelistbackend.web.dto.response.AuthResponse;
 import ru.reshetoff.notelistbackend.web.dto.response.ErrorResponse;
 import ru.reshetoff.notelistbackend.web.dto.response.UserResponse;
@@ -359,7 +359,7 @@ public class AuthController {
                             mediaType = "application/json",
                             examples = @ExampleObject(value = """
                                     {
-                                        "message": "На ваш email отправлено письмо со ссылкой для подтверждения. Ссылка действительна 24 часа."
+                                        "message": "На ваш email отправлен код подтверждения. Код действителен 24 часа."
                                     }
                                     """)
                     )
@@ -381,17 +381,122 @@ public class AuthController {
                     )
             )
     })
-    public ResponseEntity<Map<String, String>> sendVerification(@RequestParam String email) {
-        verificationService.sendVerificationEmail(email);
+    public ResponseEntity<Map<String, String>> sendVerification(
+            @RequestParam String email,
+            @RequestHeader(value = "X-Test-Token", required = false) String testToken
+    ) {
+        verificationService.sendVerificationCode(email, testToken);
         return ResponseEntity.ok(Map.of(
-                "message", "На ваш email отправлено письмо со ссылкой для подтверждения. Ссылка действительна 24 часа."
+                "message", "На ваш email отправлен код подтверждения. Код действителен 24 часа."
         ));
     }
 
-    @Hidden
-    @GetMapping("/verify")
-    public ResponseEntity<Map<String, String>> verifyEmail(@RequestParam String token) {
-        verificationService.verifyEmail(token);
+    @PostMapping("/verify")
+    @Operation(
+            summary = "Подтвердить email по коду",
+            description = "Подтверждает email пользователя с помощью 6-значного кода, отправленного на почту. "
+                    + "После успешной верификации пользователь может войти в систему. "
+                    + "Допускается не более 5 попыток ввода кода."
+    )
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            description = "Email и код подтверждения",
+            required = true,
+            content = @Content(
+                    mediaType = "application/json",
+                    examples = @ExampleObject(value = """
+                            {
+                                "email": "ivan@example.com",
+                                "code": "123456"
+                            }
+                            """)
+            )
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Email успешно подтверждён",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                        "message": "Email успешно подтверждён. Теперь вы можете войти в систему."
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Неверный код, код истёк, или превышено количество попыток",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class),
+                            examples = {
+                                    @ExampleObject(
+                                            name = "InvalidCode",
+                                            value = """
+                                                    {
+                                                        "code": "INVALID_VERIFICATION_CODE",
+                                                        "level": "error",
+                                                        "message": "Invalid verification code for email: ivan@example.com",
+                                                        "details": null
+                                                    }
+                                                    """
+                                    ),
+                                    @ExampleObject(
+                                            name = "ExpiredCode",
+                                            value = """
+                                                    {
+                                                        "code": "INVALID_VERIFICATION_CODE",
+                                                        "level": "error",
+                                                        "message": "Verification code expired for email: ivan@example.com",
+                                                        "details": null
+                                                    }
+                                                    """
+                                    ),
+                                    @ExampleObject(
+                                            name = "TooManyAttempts",
+                                            value = """
+                                                    {
+                                                        "code": "INVALID_VERIFICATION_CODE",
+                                                        "level": "error",
+                                                        "message": "Too many attempts for email: ivan@example.com",
+                                                        "details": null
+                                                    }
+                                                    """
+                                    ),
+                                    @ExampleObject(
+                                            name = "NotFound",
+                                            value = """
+                                                    {
+                                                        "code": "INVALID_VERIFICATION_CODE",
+                                                        "level": "error",
+                                                        "message": "Verification code for email: ivan@example.com not found",
+                                                        "details": null
+                                                    }
+                                                    """
+                                    )
+                            }
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Пользователь с таким email не найден",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class),
+                            examples = @ExampleObject(value = """
+                                    {
+                                        "code": "USER_NOT_FOUND",
+                                        "level": "error",
+                                        "message": "User with email ivan@example.com not found",
+                                        "details": null
+                                    }
+                                    """)
+                    )
+            )
+    })
+    public ResponseEntity<Map<String, String>> verifyEmail(@Valid @RequestBody VerifyCodeRequest request) {
+        verificationService.verifyCode(request.email(), request.code());
         return ResponseEntity.ok(Map.of(
                 "message", "Email успешно подтверждён. Теперь вы можете войти в систему."
         ));
@@ -457,5 +562,91 @@ public class AuthController {
         UUID userId = SecurityUtils.getCurrentUserId();
         User user = userService.findById(userId);
         return ResponseEntity.ok(AuthMapper.toResponse(user));
+    }
+
+    @DeleteMapping("/me")
+    @Operation(
+            summary = "Удаление пользователя",
+            description = "Удаляет текущего пользователя"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Данные пользователя успешно удалены",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                        "message", "Пользователь успешно удален"
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Пользователь не авторизован (токен истек, невалиден или отсутствует)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class),
+                            examples = @ExampleObject(value = """
+                                    {
+                                        "code": "UNAUTHORIZED",
+                                        "level": "error",
+                                        "message": "Full authentication is required to access this resource",
+                                        "details": null
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Аккаунт не верифицирован",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class),
+                            examples = @ExampleObject(
+                                    name = "ForbiddenError",
+                                    value = """
+                                            {
+                                                "code": "ACCOUNT_NOT_VERIFIED",
+                                                "level": "error",
+                                                "message": "Account not verified: ivan@example.com",
+                                                "details": null
+                                            }
+                                            """
+                            )
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Пользователь не найден в базе данных",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class),
+                            examples = @ExampleObject(value = """
+                                    {
+                                        "code": "USER_NOT_FOUND",
+                                        "level": "error",
+                                        "message": "User not found",
+                                        "details": null
+                                    }
+                                    """)
+                    )
+            )
+    })
+    public ResponseEntity<Map<String, String>> deleteCurrentUser() {
+        UUID userId = SecurityUtils.getCurrentUserId();
+
+        User currentUser = userService.findById(userId);
+
+        if (!currentUser.isVerified()) {
+            throw new AccountNotVerifiedException(currentUser.getEmail());
+        }
+
+        userService.deleteUser(currentUser);
+
+        return ResponseEntity.ok(Map.of(
+                "message", "Пользователь успешно удален"
+        ));
     }
 }

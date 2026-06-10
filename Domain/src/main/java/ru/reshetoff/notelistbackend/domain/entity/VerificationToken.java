@@ -16,12 +16,15 @@ public class VerificationToken {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "token", nullable = false, unique = true)
-    private String token;
+    @Column(name = "code", nullable = false, unique = true)
+    private String code;
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false, unique = true)
     private User user;
+
+    @Column(name = "attempts", nullable = false)
+    private Integer attempts = 0;
 
     @Column(name = "expiry_date", nullable = false)
     private LocalDateTime expiryDate;

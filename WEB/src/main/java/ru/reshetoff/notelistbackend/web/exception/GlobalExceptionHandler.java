@@ -34,8 +34,8 @@ public class GlobalExceptionHandler {
         );
     }
 
-    @ExceptionHandler(InvalidVerificationTokenException.class)
-    public ResponseEntity<ErrorResponse> handleInvalidVerificationTokenException(InvalidVerificationTokenException ex) {
+    @ExceptionHandler(InvalidVerificationCodeException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidVerificationTokenException(InvalidVerificationCodeException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
                 new ErrorResponse("INVALID_VERIFICATION_TOKEN", "error", ex.getMessage())
         );
@@ -60,18 +60,18 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidCredentialsException(InvalidCredentialsException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                new ErrorResponse("UNAUTHORIZED", "error", ex.getMessage())
+        );
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleException(Exception ex) {
         ex.printStackTrace();
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
                 new ErrorResponse("INTERNAL_SERVER_ERROR", "error", ex.getMessage())
-        );
-    }
-
-    @ExceptionHandler(InvalidCredentialsException.class)
-    public ResponseEntity<ErrorResponse> handleInvalidCredentialsException(InvalidCredentialsException ex) {
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
-                new ErrorResponse("UNAUTHORIZED", "error", ex.getMessage())
         );
     }
 }

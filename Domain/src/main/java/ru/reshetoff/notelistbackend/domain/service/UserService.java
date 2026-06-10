@@ -19,4 +19,8 @@ public interface UserService {
     List<User> findAllByPhoneNumbers(List<String> phoneNumbers);
 
     void updateRefreshToken(User user);
+
+    void deleteUser(User user);
+
+    int deleteUnverifiedOlderThan(int hours);
 }

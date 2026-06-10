@@ -26,10 +26,19 @@ public class VerificationTokenRepositoryImpl implements VerificationTokenReposit
     }
 
     @Override
-    public Optional<VerificationToken> findByToken(String token) {
-        String jpql = "SELECT v FROM VerificationToken v WHERE v.token = :token";
+    public Optional<VerificationToken> findByCode(String code) {
+        String jpql = "SELECT v FROM VerificationToken v WHERE v.code = :code";
         TypedQuery<VerificationToken> query = em.createQuery(jpql, VerificationToken.class);
-        query.setParameter("token", token);
+        query.setParameter("code", code);
+        List<VerificationToken> tokens = query.getResultList();
+        return tokens.isEmpty() ? Optional.empty() : Optional.of(tokens.get(0));
+    }
+
+    @Override
+    public Optional<VerificationToken> findByUserEmail(String email) {
+        String jpql = "SELECT v FROM VerificationToken v WHERE v.user.email = :email";
+        TypedQuery<VerificationToken> query = em.createQuery(jpql, VerificationToken.class);
+        query.setParameter("email", email);
         List<VerificationToken> tokens = query.getResultList();
         return tokens.isEmpty() ? Optional.empty() : Optional.of(tokens.get(0));
     }

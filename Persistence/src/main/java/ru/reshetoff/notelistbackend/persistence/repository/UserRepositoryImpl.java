@@ -7,6 +7,7 @@ import org.springframework.stereotype.Repository;
 import ru.reshetoff.notelistbackend.domain.entity.User;
 import ru.reshetoff.notelistbackend.domain.repository.UserRepository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -59,11 +60,24 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     @Override
+    public List<User> findUnverifiedOlderThan(LocalDateTime threshold) {
+        String jpql = "SELECT u FROM User u WHERE u.isVerified = false AND u.createdAt < :threshold";
+        TypedQuery<User> query = em.createQuery(jpql, User.class);
+        query.setParameter("threshold", threshold);
+        return query.getResultList();
+    }
+
+    @Override
     public boolean existsByEmail(String email) {
         String jpql = "SELECT COUNT(u) FROM User u WHERE u.email = :email";
         TypedQuery<Long> query = em.createQuery(jpql, Long.class);
         query.setParameter("email", email);
         Long count = query.getSingleResult();
         return count > 0;
+    }
+
+    @Override
+    public void delete(User user) {
+        em.remove(em.contains(user) ? user : em.merge(user));
     }
 }

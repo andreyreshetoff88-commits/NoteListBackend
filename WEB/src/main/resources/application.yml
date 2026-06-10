@@ -41,6 +41,10 @@ jwt:
   access-token-expiration: 1800000
   refresh-token-expiration: 2592000000
 
+verification:
+  test-token: ${TEST_API_TOKEN}
+  test-code: ${TEST_VERIFICATION_CODE}
+
 springdoc:
   api-docs:
     path: /api-docs

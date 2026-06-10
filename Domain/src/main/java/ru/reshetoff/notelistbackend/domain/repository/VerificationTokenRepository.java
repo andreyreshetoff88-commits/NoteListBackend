@@ -8,7 +8,9 @@ import java.util.Optional;
 public interface VerificationTokenRepository {
     void save(VerificationToken token);
 
-    Optional<VerificationToken> findByToken(String token);
+    Optional<VerificationToken> findByCode(String code);
+
+    Optional<VerificationToken> findByUserEmail(String email);
 
     void delete(VerificationToken token);
 
