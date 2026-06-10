@@ -577,7 +577,7 @@ public class AuthController {
                             mediaType = "application/json",
                             examples = @ExampleObject(value = """
                                     {
-                                        "message", "Пользователь успешно удален"
+                                        "message": "Пользователь успешно удален"
                                     }
                                     """)
                     )
@@ -596,25 +596,6 @@ public class AuthController {
                                         "details": null
                                     }
                                     """)
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "403",
-                    description = "Аккаунт не верифицирован",
-                    content = @Content(
-                            mediaType = "application/json",
-                            schema = @Schema(implementation = ErrorResponse.class),
-                            examples = @ExampleObject(
-                                    name = "ForbiddenError",
-                                    value = """
-                                            {
-                                                "code": "ACCOUNT_NOT_VERIFIED",
-                                                "level": "error",
-                                                "message": "Account not verified: ivan@example.com",
-                                                "details": null
-                                            }
-                                            """
-                            )
                     )
             ),
             @ApiResponse(
@@ -638,10 +619,6 @@ public class AuthController {
         UUID userId = SecurityUtils.getCurrentUserId();
 
         User currentUser = userService.findById(userId);
-
-        if (!currentUser.isVerified()) {
-            throw new AccountNotVerifiedException(currentUser.getEmail());
-        }
 
         userService.deleteUser(currentUser);
 
