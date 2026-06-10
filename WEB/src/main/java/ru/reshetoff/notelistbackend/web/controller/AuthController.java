@@ -1,5 +1,6 @@
 package ru.reshetoff.notelistbackend.web.controller;
 
+import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
@@ -387,41 +388,8 @@ public class AuthController {
         ));
     }
 
+    @Hidden
     @GetMapping("/verify")
-    @Operation(
-            summary = "Подтвердить email по токену",
-            description = "Подтверждает email пользователя. После успешной верификации пользователь может войти в систему."
-    )
-    @ApiResponses(value = {
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Email успешно подтверждён",
-                    content = @Content(
-                            mediaType = "application/json",
-                            examples = @ExampleObject(value = """
-                                    {
-                                        "message": "Email успешно подтверждён. Теперь вы можете войти в систему."
-                                    }
-                                    """)
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "Невалидный или просроченный токен",
-                    content = @Content(
-                            mediaType = "application/json",
-                            schema = @Schema(implementation = ErrorResponse.class),
-                            examples = @ExampleObject(value = """
-                                    {
-                                        "code": "INVALID_VERIFICATION_TOKEN",
-                                        "level": "error",
-                                        "message": "Invalid or expired verification token: some-uuid",
-                                        "details": null
-                                    }
-                                    """)
-                    )
-            )
-    })
     public ResponseEntity<Map<String, String>> verifyEmail(@RequestParam String token) {
         verificationService.verifyEmail(token);
         return ResponseEntity.ok(Map.of(
