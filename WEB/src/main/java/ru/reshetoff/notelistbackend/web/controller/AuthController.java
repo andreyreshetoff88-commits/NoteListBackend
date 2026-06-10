@@ -12,11 +12,15 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import ru.reshetoff.notelistbackend.domain.entity.User;
 import ru.reshetoff.notelistbackend.domain.exception.AccountNotVerifiedException;
+import ru.reshetoff.notelistbackend.domain.exception.InvalidCredentialsException;
+import ru.reshetoff.notelistbackend.domain.exception.UserNotFoundException;
 import ru.reshetoff.notelistbackend.domain.service.UserService;
 import ru.reshetoff.notelistbackend.domain.service.VerificationService;
 import ru.reshetoff.notelistbackend.web.dto.requests.LoginRequest;
@@ -181,7 +185,7 @@ public class AuthController {
                                             {
                                                 "code": "UNAUTHORIZED",
                                                 "level": "error",
-                                                "message": "Invalid email or password",
+                                                "message": "Invalid password",
                                                 "details": null
                                             }
                                             """
@@ -206,37 +210,27 @@ public class AuthController {
                                             """
                             )
                     )
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "Пользователь с таким email не найден",
-                    content = @Content(
-                            mediaType = "application/json",
-                            schema = @Schema(implementation = ErrorResponse.class),
-                            examples = @ExampleObject(
-                                    name = "NotFoundError",
-                                    value = """
-                                            {
-                                                "code": "USER_NOT_FOUND",
-                                                "level": "error",
-                                                "message": "User with email ivan@example.com not found",
-                                                "details": null
-                                            }
-                                            """
-                            )
-                    )
             )
     })
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
-        User user = userService.findByEmail(request.getEmail());
+        User user;
+        try {
+            user = userService.findByEmail(request.getEmail());
+        } catch (UserNotFoundException e) {
+            throw new InvalidCredentialsException();
+        }
 
         if (!user.isVerified()) {
             throw new AccountNotVerifiedException(request.getEmail());
         }
 
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
-        );
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
+            );
+        } catch (BadCredentialsException e) {
+            throw new InvalidCredentialsException();
+        }
 
         userService.updateRefreshToken(user);
         user = userService.findByEmail(request.getEmail());

@@ -5,10 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import ru.reshetoff.notelistbackend.domain.exception.AccountNotVerifiedException;
-import ru.reshetoff.notelistbackend.domain.exception.EmailAlreadyExistsException;
-import ru.reshetoff.notelistbackend.domain.exception.InvalidVerificationTokenException;
-import ru.reshetoff.notelistbackend.domain.exception.UserNotFoundException;
+import ru.reshetoff.notelistbackend.domain.exception.*;
 import ru.reshetoff.notelistbackend.web.dto.response.ErrorDetail;
 import ru.reshetoff.notelistbackend.web.dto.response.ErrorResponse;
 
@@ -33,7 +30,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AccountNotVerifiedException.class)
     public ResponseEntity<ErrorResponse> handleAccountNotVerifiedException(AccountNotVerifiedException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
-                new ErrorResponse("FORBIDDEN", "error", ex.getMessage())
+                new ErrorResponse("ACCOUNT_NOT_VERIFIED", "error", ex.getMessage())
         );
     }
 
@@ -68,6 +65,13 @@ public class GlobalExceptionHandler {
         ex.printStackTrace();
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
                 new ErrorResponse("INTERNAL_SERVER_ERROR", "error", ex.getMessage())
+        );
+    }
+
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidCredentialsException(InvalidCredentialsException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                new ErrorResponse("UNAUTHORIZED", "error", ex.getMessage())
         );
     }
 }
