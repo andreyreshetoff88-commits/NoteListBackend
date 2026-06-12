@@ -433,39 +433,31 @@ public class AuthController {
             ),
             @ApiResponse(
                     responseCode = "400",
-                    description = "Неверные данные (email или password отсутствуют или невалидны)",
-                    content = @Content(
-                            mediaType = "application/json",
-                            schema = @Schema(implementation = ErrorResponse.class),
-                            examples = @ExampleObject(
-                                    name = "ValidationError",
-                                    value = """
-                                            {
-                                                "code": "VALIDATION_FAILED",
-                                                "level": "error",
-                                                "message": "Some fields are filled incorrectly",
-                                                "details": [
-                                                    {
-                                                        "field": "email",
-                                                        "message": "Email is required"
-                                                    },
-                                                    {
-                                                        "field": "password",
-                                                        "message": "Password must be at least 8 characters"
-                                                    }
-                                                ]
-                                            }
-                                            """
-                            )
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "400",
                     description = "Неверный код, код истёк, или превышено количество попыток",
                     content = @Content(
                             mediaType = "application/json",
                             schema = @Schema(implementation = ErrorResponse.class),
                             examples = {
+                                    @ExampleObject(
+                                            name = "ValidationError",
+                                            value = """
+                                                    {
+                                                        "code": "VALIDATION_FAILED",
+                                                        "level": "error",
+                                                        "message": "Some fields are filled incorrectly",
+                                                        "details": [
+                                                            {
+                                                                "field": "email",
+                                                                "message": "Email is required"
+                                                            },
+                                                            {
+                                                                "field": "password",
+                                                                "message": "Password must be at least 8 characters"
+                                                            }
+                                                        ]
+                                                    }
+                                                    """
+                                    ),
                                     @ExampleObject(
                                             name = "InvalidCode",
                                             value = """
@@ -509,7 +501,8 @@ public class AuthController {
                                                         "details": null
                                                     }
                                                     """
-                                    )
+                                    ),
+
                             }
                     )
             ),
