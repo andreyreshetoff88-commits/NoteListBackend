@@ -37,7 +37,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InvalidVerificationCodeException.class)
     public ResponseEntity<ErrorResponse> handleInvalidVerificationTokenException(InvalidVerificationCodeException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
-                new ErrorResponse("INVALID_VERIFICATION_TOKEN", "error", ex.getMessage())
+                new ErrorResponse("INVALID_VERIFICATION_CODE", "error", ex.getMessage())
         );
     }
 
