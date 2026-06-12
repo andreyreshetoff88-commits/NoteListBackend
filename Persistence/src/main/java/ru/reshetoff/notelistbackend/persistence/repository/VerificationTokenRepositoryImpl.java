@@ -53,4 +53,12 @@ public class VerificationTokenRepositoryImpl implements VerificationTokenReposit
         String jpql = "DELETE FROM VerificationToken v WHERE v.user = :user";
         em.createQuery(jpql).setParameter("user", user).executeUpdate();
     }
+
+    @Override
+    public void incrementAttempts(VerificationToken token) {
+        String jpql = "UPDATE VerificationToken v SET v.attempts = v.attempts + 1 WHERE v.id = :id";
+        em.createQuery(jpql)
+                .setParameter("id", token.getId())
+                .executeUpdate();
+    }
 }

@@ -15,4 +15,6 @@ public interface VerificationTokenRepository {
     void delete(VerificationToken token);
 
     void deleteByUser(User user);
+
+    void incrementAttempts(VerificationToken token);
 }

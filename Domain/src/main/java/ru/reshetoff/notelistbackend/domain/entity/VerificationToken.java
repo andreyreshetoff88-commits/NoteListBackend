@@ -16,7 +16,7 @@ public class VerificationToken {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "code", nullable = false, unique = true)
+    @Column(name = "code", nullable = false)
     private String code;
 
     @OneToOne(fetch = FetchType.LAZY)

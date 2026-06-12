@@ -7,6 +7,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import ru.reshetoff.notelistbackend.domain.entity.User;
 import ru.reshetoff.notelistbackend.domain.entity.VerificationToken;
 import ru.reshetoff.notelistbackend.domain.exception.InvalidVerificationCodeException;
@@ -19,12 +20,12 @@ import java.time.LocalDateTime;
 import java.util.concurrent.ThreadLocalRandom;
 
 @Service
-@Transactional
 @RequiredArgsConstructor
 public class VerificationServiceImpl implements VerificationService {
     private final VerificationTokenRepository verificationTokenRepository;
     private final UserRepository userRepository;
     private final JavaMailSender javaMailSender;
+    private final TransactionTemplate transactionTemplate;
 
     @Value("${spring.mail.from}")
     private String fromAddress;
@@ -34,6 +35,7 @@ public class VerificationServiceImpl implements VerificationService {
     private String testCode;
 
     @Override
+    @Transactional
     public void sendVerificationCode(String email, String testToken) {
         User user = userRepository.findByEmail(email).orElseThrow(
                 () -> new UserNotFoundException(email, true)
@@ -77,26 +79,37 @@ public class VerificationServiceImpl implements VerificationService {
         );
 
         if (verificationToken.getExpiryDate().isBefore(LocalDateTime.now())) {
-            verificationTokenRepository.delete(verificationToken);
+            transactionTemplate.execute(status -> {
+                verificationTokenRepository.delete(verificationToken);
+                return null;
+            });
             throw new InvalidVerificationCodeException("Verification code expired for email: " + email);
         }
 
-        if (!verificationToken.getCode().equals(code)) {
-            verificationToken.setAttempts(verificationToken.getAttempts() + 1);
-            verificationTokenRepository.save(verificationToken);
-            throw new InvalidVerificationCodeException("Invalid verification code for email: " + email);
-        }
-
         if (verificationToken.getAttempts() >= 5) {
-            verificationTokenRepository.delete(verificationToken);
+            transactionTemplate.execute(status -> {
+                verificationTokenRepository.delete(verificationToken);
+                return null;
+            });
             throw new InvalidVerificationCodeException("Too many attempts for email: " + email);
         }
 
-        User user = verificationToken.getUser();
-        user.setVerified(true);
-        userRepository.save(user);
+        if (!verificationToken.getCode().equals(code)) {
+            transactionTemplate.execute(status -> {
+                verificationTokenRepository.incrementAttempts(verificationToken);
+                return null;
+            });
+            throw new InvalidVerificationCodeException("Invalid verification code for email: " + email);
+        }
 
-        verificationTokenRepository.delete(verificationToken);
+        transactionTemplate.execute(status -> {
+            User user = verificationToken.getUser();
+            user.setVerified(true);
+            userRepository.save(user);
+
+            verificationTokenRepository.delete(verificationToken);
+            return null;
+        });
     }
 
     private void sendHtmlEmail(String to, String subject, String body) {
