@@ -1,6 +1,7 @@
 package ru.reshetoff.notelistbackend.web.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -191,25 +192,6 @@ public class AuthController {
                                             """
                             )
                     )
-            ),
-            @ApiResponse(
-                    responseCode = "403",
-                    description = "Аккаунт не верифицирован",
-                    content = @Content(
-                            mediaType = "application/json",
-                            schema = @Schema(implementation = ErrorResponse.class),
-                            examples = @ExampleObject(
-                                    name = "ForbiddenError",
-                                    value = """
-                                            {
-                                                "code": "ACCOUNT_NOT_VERIFIED",
-                                                "level": "error",
-                                                "message": "Account not verified: ivan@example.com",
-                                                "details": null
-                                            }
-                                            """
-                            )
-                    )
             )
     })
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
@@ -218,10 +200,6 @@ public class AuthController {
             user = userService.findByEmail(request.getEmail());
         } catch (UserNotFoundException e) {
             throw new InvalidCredentialsException();
-        }
-
-        if (!user.isVerified()) {
-            throw new AccountNotVerifiedException(request.getEmail());
         }
 
         try {
@@ -383,6 +361,7 @@ public class AuthController {
     })
     public ResponseEntity<Map<String, String>> sendVerification(
             @RequestParam String email,
+            @Parameter(hidden = true)
             @RequestHeader(value = "X-Test-Token", required = false) String testToken
     ) {
         verificationService.sendVerificationCode(email, testToken);
