@@ -194,7 +194,7 @@ public class AuthController {
                     )
             )
     })
-    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
+    public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest request) {
         User user;
         try {
             user = userService.findByEmail(request.getEmail());
@@ -245,6 +245,34 @@ public class AuthController {
                                         "refreshToken": "eyJhbGciOiJIUzI1NiJ9..."
                                     }
                                     """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Неверные данные (email или password отсутствуют или невалидны)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class),
+                            examples = @ExampleObject(
+                                    name = "ValidationError",
+                                    value = """
+                                            {
+                                                "code": "VALIDATION_FAILED",
+                                                "level": "error",
+                                                "message": "Some fields are filled incorrectly",
+                                                "details": [
+                                                    {
+                                                        "field": "email",
+                                                        "message": "Email is required"
+                                                    },
+                                                    {
+                                                        "field": "password",
+                                                        "message": "Password must be at least 8 characters"
+                                                    }
+                                                ]
+                                            }
+                                            """
+                            )
                     )
             ),
             @ApiResponse(
@@ -401,6 +429,34 @@ public class AuthController {
                                         "message": "Email успешно подтверждён. Теперь вы можете войти в систему."
                                     }
                                     """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Неверные данные (email или password отсутствуют или невалидны)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class),
+                            examples = @ExampleObject(
+                                    name = "ValidationError",
+                                    value = """
+                                            {
+                                                "code": "VALIDATION_FAILED",
+                                                "level": "error",
+                                                "message": "Some fields are filled incorrectly",
+                                                "details": [
+                                                    {
+                                                        "field": "email",
+                                                        "message": "Email is required"
+                                                    },
+                                                    {
+                                                        "field": "password",
+                                                        "message": "Password must be at least 8 characters"
+                                                    }
+                                                ]
+                                            }
+                                            """
+                            )
                     )
             ),
             @ApiResponse(
