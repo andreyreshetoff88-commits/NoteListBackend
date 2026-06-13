@@ -74,6 +74,10 @@ public class VerificationServiceImpl implements VerificationService {
 
     @Override
     public void verifyCode(String email, String code) {
+        User user = userRepository.findByEmail(email).orElseThrow(
+                () -> new UserNotFoundException(email, true)
+        );
+
         VerificationToken verificationToken = verificationTokenRepository.findByUserEmail(email).orElseThrow(
                 () -> new InvalidVerificationCodeException("Verification code for email: " + email + " not found")
         );
@@ -103,7 +107,6 @@ public class VerificationServiceImpl implements VerificationService {
         }
 
         transactionTemplate.execute(status -> {
-            User user = verificationToken.getUser();
             user.setVerified(true);
             userRepository.save(user);
 
